@@ -79,11 +79,9 @@
         security_group_id: "{{ sg_id }}"
         count: 1
         wait: true
-        tags:
-          - Key: Name
-            Value: "{{ instance_name }}"
-          - Key: Resource
-            Value: "{{ tag_name }}"
+        tags: 
+          Name: "{{ instance_name }}"
+          Resource: "{{ tag_name }}"
       when: instance_info.instances | length == 0
 
 - name: Ensure EC2 instance is running
