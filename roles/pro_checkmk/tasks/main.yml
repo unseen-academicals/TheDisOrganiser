@@ -1,4 +1,9 @@
 ---
+  - name: Add universe repository
+    apt_repository:
+      repo: "deb http://archive.ubuntu.com/ubuntu focal universe"
+      state: present
+    become: yes
 
   - name: Install required packages
     apt:
@@ -8,6 +13,7 @@
         - gnupg
       state: present
       update_cache: true
+    become: yes
 
   - name: Update Message of the Day
     template:
