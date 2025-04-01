@@ -76,7 +76,7 @@
         instance_type: "{{ instance_type }}"
         image_id: "{{ ami_id }}"
         key_name: "{{ key_name }}"
-        security_group: ["{{ sg_id }}"]  # Fixed parameter
+        vpc_security_group_ids: ["{{ sg_id }}"]  
         count: 1
         wait: true
         tags:
