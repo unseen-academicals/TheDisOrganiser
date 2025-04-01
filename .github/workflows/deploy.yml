@@ -44,6 +44,9 @@ jobs:
         pip install ansible boto3 botocore
         ansible-galaxy collection install amazon.aws
 
+    - name: Install amazon.aws collection
+      run: ansible-galaxy collection install amazon.aws
+
     - name: Run Ansible playbook
       run: |
-        ansible-playbook pbk_checkmk.yml
+        ansible-playbook pbk_checkmk.yml -i localhost,
