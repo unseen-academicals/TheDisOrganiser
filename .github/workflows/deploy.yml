@@ -38,6 +38,14 @@ jobs:
       with:
         python-version: '3.x'
 
+    - name: Pre-populate known_hosts
+      run: |
+        IP=$(aws ec2 describe-instances \
+          --filters "Name=tag:Name,Values=disorganizer" \
+          --query 'Reservations[].Instances[].PublicIpAddress' \
+          --output text)
+        ssh-keyscan $IP >> ~/.ssh/known_hosts
+
     - name: Install Ansible and AWS collection
       run: |
         python -m pip install --upgrade pip
