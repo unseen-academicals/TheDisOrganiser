@@ -60,14 +60,13 @@
           - "/opt/omd/sites/cmk/tmp:uid=1000,gid=1000"
 
     - name: Set Checkmk admin password
-      become: yes
-      docker_container_exec:
+      community.docker.docker_container_exec:
         container: "{{ container_name }}"
         command: |
-          /bin/bash -c "omd su cmk -c 'cmk-passwd cmkadmin -i <<EOF
+          omd su cmk -c 'cmk-passwd cmkadmin -i <<EOF
           swordfish
           swordfish
-          EOF'"
+          EOF'
 
 
 # - name: checkmk
