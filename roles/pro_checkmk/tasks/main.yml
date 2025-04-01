@@ -1,19 +1,15 @@
 ---
-  # - name: Add Ubuntu GPG keys
-  #   become: yes
-  #   apt_key:
-  #     keyserver: keyserver.ubuntu.com
-  #     id: "3B4FE6ACC0B21F32 871920D1991BC93C"
-  #     state: present
+- name: Add Ubuntu security repository
+  become: yes
+  apt_repository:
+    repo: "deb http://security.ubuntu.com/ubuntu focal-security main universe"
+    state: present
+    filename: ubuntu-focal-security
 
-  # - name: Add universe repository
-  #   become: yes
-  #   apt_repository:
-  #     repo: "deb http://archive.ubuntu.com/ubuntu focal main universe"
-  #     state: present
-  #     codename: focal
-  #     filename: ubuntu-focal
-  #     update_cache: yes
+- name: Update apt cache
+  become: yes
+  apt:
+    update_cache: yes
 
   - name: Install required packages
     apt:
@@ -21,6 +17,7 @@
         - wget
         - figlet
         - gnupg
+        - perl
       state: present
       update_cache: true
     become: yes
