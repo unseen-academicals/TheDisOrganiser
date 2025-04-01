@@ -76,10 +76,10 @@
         instance_type: "{{ instance_type }}"
         image_id: "{{ ami_id }}"
         key_name: "{{ key_name }}"
-        security_group_id: "{{ sg_id }}"
+        security_group: ["{{ sg_id }}"]  # Fixed parameter
         count: 1
         wait: true
-        tags: 
+        tags:
           Name: "{{ instance_name }}"
           Resource: "{{ tag_name }}"
       when: instance_info.instances | length == 0
