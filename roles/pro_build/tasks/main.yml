@@ -74,16 +74,17 @@
       amazon.aws.ec2_instance:
         region: "{{ region }}"
         instance_type: "{{ instance_type }}"
-        image: "{{ ami_id }}"
+        image_id: "{{ ami_id }}"
         key_name: "{{ key_name }}"
-        group_id: "{{ sg_id }}"
+        security_group_id: "{{ sg_id }}"
         count: 1
+        wait: true
         tags:
           - Key: Name
             Value: "{{ instance_name }}"
           - Key: Resource
             Value: "{{ tag_name }}"
-        wait: true
+      when: instance_info.instances | length == 0
 
 - name: Ensure EC2 instance is running
   block:
