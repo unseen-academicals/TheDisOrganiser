@@ -1,15 +1,15 @@
 ---
-  - name: Add Ubuntu security repository
-    become: yes
-    apt_repository:
-      repo: "deb http://security.ubuntu.com/ubuntu focal-security main universe"
-      state: present
-      filename: ubuntu-focal-security
+  # - name: Add Ubuntu security repository
+  #   become: yes
+  #   apt_repository:
+  #     repo: "deb http://security.ubuntu.com/ubuntu focal-security main universe"
+  #     state: present
+  #     filename: ubuntu-focal-security
 
-  - name: Update apt cache
-    become: yes
-    apt:
-      update_cache: yes
+  # - name: Update apt cache
+  #   become: yes
+  #   apt:
+  #     update_cache: yes
 
   - name: Install required packages
     apt:
