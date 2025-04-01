@@ -1,0 +1,53 @@
+---
+
+  - name: Install required packages
+    apt:
+      name:
+        - wget
+        - figlet
+        - gnupg
+      state: present
+      update_cache: true
+
+  - name: Update Message of the Day
+    template:
+      src: motd.j2
+      dest: /etc/motd
+      owner: root
+      group: root
+      mode: '0644'
+
+  - name: Download Checkmk .deb package
+    get_url:
+      url: "{{ checkmk_url }}"
+      dest: "{{ download_dir }}/{{ checkmk_package }}"
+      mode: '0644'
+
+  - name: Download Checkmk public key
+    get_url:
+      url: "{{ pubkey_url }}"
+      dest: "{{ download_dir }}/Check_MK-pubkey.gpg"
+      mode: '0644'
+
+  - name: Import Checkmk public key
+    ansible.builtin.apt_key:
+      url: "{{ pubkey_url }}"
+      state: present
+
+  - name: Install Checkmk package
+    apt:
+      deb: "{{ download_dir }}/{{ checkmk_package }}"
+
+  - name: Setup CheckMK site
+    command: omd create DisOrganizer
+    args:
+      creates: "/opt/omd/sites/DisOrganizer"
+
+  - name: Allow external access
+    command: omd config DisOrganizer set APACHE_TCP_ADDR 0.0.0.0
+
+  - name: Update Apache config
+    command: omd update-apache-config DisOrganizer
+
+  - name: Start CheckMK site
+    command: omd start DisOrganizer
