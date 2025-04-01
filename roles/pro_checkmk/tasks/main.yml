@@ -1,19 +1,19 @@
 ---
-  - name: Add Ubuntu GPG keys
-    become: yes
-    apt_key:
-      keyserver: keyserver.ubuntu.com
-      id: "3B4FE6ACC0B21F32 871920D1991BC93C"
-      state: present
+  # - name: Add Ubuntu GPG keys
+  #   become: yes
+  #   apt_key:
+  #     keyserver: keyserver.ubuntu.com
+  #     id: "3B4FE6ACC0B21F32 871920D1991BC93C"
+  #     state: present
 
-  - name: Add universe repository
-    become: yes
-    apt_repository:
-      repo: "deb http://archive.ubuntu.com/ubuntu focal main universe"
-      state: present
-      codename: focal
-      filename: ubuntu-focal
-      update_cache: yes
+  # - name: Add universe repository
+  #   become: yes
+  #   apt_repository:
+  #     repo: "deb http://archive.ubuntu.com/ubuntu focal main universe"
+  #     state: present
+  #     codename: focal
+  #     filename: ubuntu-focal
+  #     update_cache: yes
 
   - name: Install required packages
     apt:
