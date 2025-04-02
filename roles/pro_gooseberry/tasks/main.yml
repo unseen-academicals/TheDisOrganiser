@@ -36,4 +36,4 @@
         state: started
         restart_policy: always
         ports:
-          - "{{ web_port }}:{{ container_port }}/tcp"
+          - "8080:80/tcp"
