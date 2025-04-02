@@ -28,12 +28,12 @@
         - name: Set security group ID
           set_fact:
             sg_id: "{{ created_sg.group_id }}"
-      when: sg_info.security_groups | length == 0
+      when: sg_info.security_groups | default([]) | length == 0
 
     - name: Set existing security group ID
       set_fact:
         sg_id: "{{ sg_info.security_groups[0].group_id }}"
-      when: sg_info.security_groups | length > 0
+      when: sg_info.security_groups | default([]) | length > 0
 
 - name: Ensure EC2 Instance Exists and Running
   block:
@@ -43,9 +43,9 @@
         filters:
           tag:Name: "{{ instance_name }}"
       register: instance_info
-      until: instance_info.instances | length > 0
       retries: 5
       delay: 10
+      until: instance_info.instances is defined and instance_info.instances | length > 0
 
     - name: Create instance if it doesn't exist
       block:
@@ -77,37 +77,45 @@
             wait_timeout: 600
           register: ec2_instance
 
-        - name: Wait for instance to be running
+        - name: Refresh instance info
           amazon.aws.ec2_instance_info:
             region: "{{ region }}"
             instance_ids:
               - "{{ ec2_instance.instances[0].instance_id }}"
           register: instance_info
-          until: instance_info.instances[0].state.name == 'running'
+          until: instance_info.instances is defined and instance_info.instances | length > 0
           retries: 30
           delay: 10
-      when: instance_info.instances | length == 0
+      when: instance_info.instances | default([]) | length == 0
 
-    - name: Ensure instance is running (start if stopped)
-      block:
-        - name: Start instance if not running
-          amazon.aws.ec2_instance:
-            instance_ids: "{{ instance_info.instances[0].instance_id }}"
-            region: "{{ region }}"
-            state: running
-            wait: yes
-          when: instance_info.instances[0].state.name != 'running'
+    - name: Get current instance state
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        instance_ids:
+          - "{{ instance_info.instances[0].instance_id }}"
+      register: current_instance_info
+      when: instance_info.instances | default([]) | length > 0
 
-        - name: Refresh instance info after starting
-          amazon.aws.ec2_instance_info:
-            region: "{{ region }}"
-            instance_ids:
-              - "{{ instance_info.instances[0].instance_id }}"
-          register: instance_info
-          until: instance_info.instances[0].state.name == 'running'
-          retries: 30
-          delay: 10
-      when: instance_info.instances | length > 0
+    - name: Start instance if not running
+      amazon.aws.ec2_instance:
+        instance_ids: "{{ instance_info.instances[0].instance_id }}"
+        region: "{{ region }}"
+        state: running
+        wait: yes
+      when: 
+        - instance_info.instances | default([]) | length > 0
+        - current_instance_info.instances[0].state.name != 'running'
+
+    - name: Verify instance is running
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        instance_ids:
+          - "{{ instance_info.instances[0].instance_id }}"
+      register: verified_instance
+      until: verified_instance.instances[0].state.name == 'running'
+      retries: 30
+      delay: 10
+      when: instance_info.instances | default([]) | length > 0
 
 - name: Get Instance Public IP
   block:
@@ -119,6 +127,7 @@
           instance-state-name: running
       register: instance_data
       until: 
+        - instance_data.instances is defined
         - instance_data.instances | length > 0
         - instance_data.instances[0].public_ip_address is defined
       retries: 30
@@ -129,3 +138,7 @@
         name: "{{ instance_data.instances[0].public_dns_name }}"
         ansible_host: "{{ instance_data.instances[0].public_ip_address }}"
         groups: dynamic_ec2
+      when: 
+        - instance_data.instances is defined
+        - instance_data.instances | length > 0
+        - instance_data.instances[0].public_ip_address is defined
