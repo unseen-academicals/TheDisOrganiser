@@ -40,7 +40,7 @@
 
     - name: Get instance public DNS
       amazon.aws.ec2_instance_info:
-        region: "{{ region }}"
+        region: us-east-1
         filters:
           tag:Name: "{{ instance_name }}"
       register: instance_data
