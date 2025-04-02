@@ -62,4 +62,4 @@ jobs:
 
     - name: Run Ansible playbook
       run: |
-        ansible-playbook pbk_checkmk.yml -i localhost,
+        ansible-playbook pbk_gooseberry.yml -i localhost,

@@ -1,144 +1,123 @@
-#  Deploy EC2 and Install Checkmk with Ansible via GitHub Actions
+---
 
-This project automates the provisioning of an AWS EC2 instance and installs [Checkmk](https://checkmk.com/) monitoring via Docker using Ansible, all triggered through a GitHub Actions workflow.
+# Deploy EC2 and Install Gooseberry with Ansible via GitHub Actions
 
-##  Overview
+This project automates the provisioning of an AWS EC2 instance and deploys the [Gooseberry](https://github.com/robanybody1920/gooseberry) application via Docker using Ansible, all triggered through a GitHub Actions workflow.
+
+---
+
+## Overview
 
 With a single manual trigger from GitHub Actions (`workflow_dispatch`), this repository:
 
-1. Checks if a named EC2 instance exists.
-2. Creates a security group if necessary.
-3. Launches a new Debian-based EC2 instance using the latest AMI.
-4. Connects to the instance via SSH.
-5. Installs Docker and Checkmk via Docker container.
-6. Sets the Checkmk admin password.
-7. Automatically configures your MOTD.
-8. Runs entirely through Ansible playbooks for reproducibility and clarity.
-
+1. **Creates an EC2 instance** (Debian-based, `t2.micro`) with a security group.
+2. **Installs Docker** and deploys the Gooseberry container.
+3. **Exposes Gooseberry** on port `8080` (or `80` if configured).
+4. **Prints the access URL** dynamically after deployment.
+5. **Updates the MOTD** (Message of the Day) on the EC2 instance.
 
 ---
 
-##  Repository Structure
+## Repository Structure
 
- ├── .github/
- │ └── workflows/
- │ └── deploy.yml # GitHub Actions workflow file
- ├── roles/
- │ ├── pro_build/ # Role to create EC2 instance and security group 
- │ └── pro_checkmk/ # Role to install and configure Checkmk 
- ├── pbk_checkmk.yml # Entry point Ansible playbook 
- ├── motd.j2 # Template for the EC2 Message of the Day 
- └── README.md # This file
+```
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # GitHub Actions workflow file
+├── roles/
+│   ├── pro_build/              # Role to create EC2 instance and security group
+│   └── pro_gooseberry/         # Role to install and configure Gooseberry
+├── pbk_checkmk.yml             # Main Ansible playbook (renamed to pbk_gooseberry.yml in your actual repo)
+├── motd.j2                     # Template for the EC2 MOTD
+└── README.md                   # This file
+```
 
 ---
 
-##  Requirements
+## Requirements
 
-Before running, ensure you’ve added the following secrets to your GitHub repository:
+### GitHub Secrets
+Add these secrets to your repository:
 
 | Secret Name             | Description                                      |
-|------------------------|---------------------------------------------------|
-| `AWS_ACCESS_KEY_ID`    | AWS access key with EC2 and IAM permissions       |
-| `AWS_SECRET_ACCESS_KEY`| Secret key associated with the AWS access key     |
-| `AWS_SESSION_TOKEN`    | (Optional) Temporary session token                |
-| `SSH_PRIVATE_KEY`      | Base64-encoded SSH private key matching `key_name`|
+|------------------------|-------------------------------------------------|
+| `AWS_ACCESS_KEY_ID`    | AWS access key with EC2 permissions             |
+| `AWS_SECRET_ACCESS_KEY`| AWS secret key                                  |
+| `SSH_PRIVATE_KEY`      | Base64-encoded SSH key matching `key_name`      |
 
-> You can encode your private key like this:
-> ```bash
-> base64 -w 0 ~/.ssh/id_rsa
-> ```
-
----
-
-##  How It Works
-
-### GitHub Actions Workflow (`deploy.yml`)
-This workflow:
-
-- Authenticates with AWS using your secrets.
-- Sets up an SSH key on the runner.
-- Scans and registers the EC2 host to `known_hosts`.
-- Installs Python, Ansible, and required collections (`amazon.aws`, `community.docker`).
-- Executes the Ansible playbook `pbk_checkmk.yml`.
-
-### Ansible Playbook: `pbk_checkmk.yml`
-
-The playbook handles:
-
-1. **Security Group Management**
-   - Checks for an existing group called `disorganized-sg`.
-   - If not found, creates one with common ports (`22`, `80`, `443`, etc.).
-
-2. **EC2 Instance Provisioning**
-   - Looks for an instance tagged `Name=disorganizer`.
-   - If not found, launches a new `t2.micro` instance using the latest Debian 11 AMI.
-   - Associates the instance with the defined key and security group.
-
-3. **Instance Preparation**
-   - Gathers instance metadata.
-   - Adds the instance to a temporary dynamic Ansible inventory.
-
-4. **Checkmk Deployment**
-   - Installs `docker.io` and `docker-compose`.
-   - Pulls the `checkmk` Docker image.
-   - Starts the container and maps web (8080) and agent (8000) ports.
-   - Sets the Checkmk admin password (`swordfish` by default).
+Encode your private key:
+```bash
+base64 -w 0 ~/.ssh/ITM350.pem
+```
 
 ---
 
-##  Triggering the Deployment
+## How It Works
 
-Once everything is configured:
+### 1. GitHub Actions Workflow (`deploy.yml`)
+- Sets up AWS authentication.
+- Configures SSH for Ansible.
+- Installs Ansible + dependencies (`amazon.aws`, `community.docker`).
+- Runs the Ansible playbook.
 
-1. Go to the **Actions** tab in your GitHub repository.
-2. Select the workflow: `Deploy EC2 with Ansible`.
-3. Click **Run workflow**.
-
-
----
-
-##  Accessing Checkmk
-
-Once complete, visit:
-http://<EC2_PUBLIC_IP>:8080
-
-
-Login with:
-- **Username**: `cmkadmin`
-- **Password**: `swordfish`
-
+### 2. Ansible Playbook (`pbk_checkmk.yml`)
+- **EC2 Provisioning**:
+  - Creates a security group (`disorganized-sg`) with ports `22` (SSH), `80` (HTTP), and `443` (HTTPS) open.
+  - Launches a Debian EC2 instance tagged `Name=disorganizer`.
+- **Gooseberry Deployment**:
+  - Installs Docker and `docker-compose`.
+  - Pulls the `robanybody1920/gooseberry:latest` image.
+  - Runs the container with port mapping (`8080:8080` by default).
 
 ---
 
-##  Variables Reference
+## Triggering Deployment
 
-These can be found in the playbook but are summarized here:
+1. Navigate to **Actions** → **Deploy EC2 with Ansible** in your repo.
+2. Click **Run workflow**.
 
-| Variable Name         | Default Value     | Description                           |
-|-----------------------|-------------------|---------------------------------------|
-| `instance_name`       | `disorganizer`    | EC2 instance Name tag                 |
-| `key_name`            | `ITM350`          | Existing EC2 key pair                 |
-| `security_group_name` | `disorganized-sg` | Security group name                   |
-| `instance_type`       | `t2.micro`        | EC2 instance size                     |
-| `region`              | `us-east-1`       | AWS region                            |
-| `checkmk_image`       | `checkmk/check-mk-raw:2.2.0-latest` | Docker image to use |
-| `container_name`      | `checkmk_monitoring` | Name of the Docker container       |
-| `web_port`            | `8080`            | Host port for Checkmk web UI          |
-| `agent_port`          | `8000`            | Host port for Checkmk agent           |
+---
+
+## Accessing Gooseberry
+
+After deployment, access the app at:  
+**`http://<EC2_PUBLIC_DNS>:8080`**  
+
+Example URL:  
+`http://ec2-12-34-56-78.compute-1.amazonaws.com:8080`
+
+---
+
+## Variables Reference
+
+| Variable              | Default Value                     | Description                          |
+|-----------------------|-----------------------------------|--------------------------------------|
+| `instance_name`       | `disorganizer`                    | EC2 instance Name tag                |
+| `key_name`            | `ITM350`                          | EC2 key pair name                    |
+| `security_group_name` | `disorganized-sg`                 | Security group name                  |
+| `instance_type`       | `t2.micro`                        | EC2 instance size                    |
+| `region`              | `us-east-1`                       | AWS region                           |
+| `image`               | `robanybody1920/gooseberry:latest`| Gooseberry Docker image              |
+| `container_name`      | `gooseberry`                      | Docker container name                |
+| `web_port`            | `8080`                            | Host port for Gooseberry             |
 
 ---
 
 ## Teardown
 
-To terminate your EC2 instance manually:
-
+To destroy the EC2 instance:
 ```bash
-aws ec2 terminate-instances --instance-ids <instance-id> --region us-east-1
+aws ec2 terminate-instances --instance-ids <your-instance-id> --region us-east-1
+```
 
+---
 
-Troubleshooting
-SSH failures? Double-check the key used matches ITM350.
+## Troubleshooting
 
-EC2 instance not found? Ensure the Name tag is exactly disorganizer.
+| Issue                  | Solution                                    |
+|------------------------|---------------------------------------------|
+| SSH connection failed  | Verify `SSH_PRIVATE_KEY` matches `key_name` |
+| Port 8080 unreachable  | Check security group rules                  |
+| Container not starting | View logs: `docker logs gooseberry`         |
 
-Checkmk unreachable? Make sure port 8080 is open and the EC2 instance is running.
+---
