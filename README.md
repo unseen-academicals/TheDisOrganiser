@@ -27,7 +27,7 @@ With a single manual trigger from GitHub Actions (`workflow_dispatch`), this rep
 ├── roles/
 │   ├── pro_build/              # Role to create EC2 instance and security group
 │   └── pro_gooseberry/         # Role to install and configure Gooseberry
-├── pbk_checkmk.yml             # Main Ansible playbook (renamed to pbk_gooseberry.yml in your actual repo)
+├── pbk_gooseberry.yml             # Main Ansible playbook 
 ├── motd.j2                     # Template for the EC2 MOTD
 └── README.md                   # This file
 ```
