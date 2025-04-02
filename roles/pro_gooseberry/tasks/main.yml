@@ -37,3 +37,14 @@
         restart_policy: always
         ports:
           - "8080:80/tcp"
+
+    - name: Get instance public DNS
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        filters:
+          tag:Name: "{{ instance_name }}"
+      register: instance_data
+
+    - name: Print access URL
+      ansible.builtin.debug:
+        msg: "The DisOrganizer can be accessed at http://{{ instance_data.instances[0].public_dns_name }}:8080"
