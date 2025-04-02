@@ -1,144 +1,261 @@
 ---
 - name: Build Security Group
   block:
+
     - name: Check for existing security group
       amazon.aws.ec2_group_info:
         region: "{{ region }}"
         filters:
           group-name: "{{ security_group_name }}"
       register: sg_info
+      failed_when: sg_info.security_groups | length == 0
 
-    - name: Create security group if it doesn't exist
-      block:
-        - name: Create security group
-          amazon.aws.ec2_group:
-            name: "{{ security_group_name }}"
-            description: Allow SSH, HTTP, and HTTPS access
-            region: "{{ region }}"
-            rules:
-              - proto: tcp
-                ports: [22, 80, 443, 5000, 8000, 8080]
-                cidr_ip: 0.0.0.0/0
-            rules_egress:
-              - proto: -1
-                cidr_ip: 0.0.0.0/0
-            state: present
-          register: created_sg
-
-        - name: Set security group ID
-          set_fact:
-            sg_id: "{{ created_sg.group_id }}"
-      when: sg_info.security_groups | default([]) | length == 0
-
-    - name: Set existing security group ID
+    - name: Set security group ID
       set_fact:
         sg_id: "{{ sg_info.security_groups[0].group_id }}"
-      when: sg_info.security_groups | default([]) | length > 0
 
-- name: Ensure EC2 Instance Exists and Running
+  rescue:
+
+    - name: Create security group
+      amazon.aws.ec2_group:
+        name: "{{ security_group_name }}"
+        description: Allow SSH, HTTP, and HTTPS access
+        region: "{{ region }}"
+        rules:
+          - proto: tcp
+            ports: [22, 80, 443, 5000]
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: -1
+            cidr_ip: 0.0.0.0/0
+        state: present
+      register: created_sg
+
+    - name: Set created security group ID
+      set_fact:
+        sg_id: "{{ created_sg.group_id }}"
+
+
+- name: Build EC2
   block:
-    - name: Check for existing instance
+
+    - name: Check if instance exists
       amazon.aws.ec2_instance_info:
         region: "{{ region }}"
         filters:
           tag:Name: "{{ instance_name }}"
       register: instance_info
-      retries: 5
-      delay: 10
-      until: instance_info.instances is defined and instance_info.instances | length > 0
+      failed_when: instance_info.instances | length == 0
 
-    - name: Create instance if it doesn't exist
-      block:
-        - name: Get latest Debian AMI
-          amazon.aws.ec2_ami_info:
-            owners: ['136693071363']
-            filters:
-              name: "debian-11*"
-              architecture: "x86_64"
-              root-device-type: "ebs"
-            region: "{{ region }}"
-          register: debian_ami
+  rescue:
 
-        - name: Set latest Debian AMI ID
-          set_fact:
-            ami_id: "{{ (debian_ami.images | sort(attribute='creation_date', reverse=true) | first).image_id }}"
-
-        - name: Launch new EC2 instance
-          amazon.aws.ec2_instance:
-            region: "{{ region }}"
-            instance_type: "{{ instance_type }}"
-            image_id: "{{ ami_id }}"
-            key_name: "{{ key_name }}"
-            security_groups: "{{ security_group_name }}"
-            tags:
-              Name: "{{ instance_name }}"
-              Resource: "{{ tag_name }}"
-            wait: yes
-            wait_timeout: 600
-          register: ec2_instance
-
-        - name: Refresh instance info
-          amazon.aws.ec2_instance_info:
-            region: "{{ region }}"
-            instance_ids:
-              - "{{ ec2_instance.instances[0].instance_id }}"
-          register: instance_info
-          until: instance_info.instances is defined and instance_info.instances | length > 0
-          retries: 30
-          delay: 10
-      when: instance_info.instances | default([]) | length == 0
-
-    - name: Get current instance state
-      amazon.aws.ec2_instance_info:
+    - name: Get latest Debian AMI
+      amazon.aws.ec2_ami_info:
+        owners: ['136693071363']
+        filters:
+          name: "debian-11*"
+          architecture: "x86_64"
+          root-device-type: "ebs"
         region: "{{ region }}"
-        instance_ids:
-          - "{{ instance_info.instances[0].instance_id }}"
-      register: current_instance_info
-      when: instance_info.instances | default([]) | length > 0
+      register: debian_ami
 
-    - name: Start instance if not running
+    - name: Set latest Debian AMI ID
+      set_fact:
+        ami_id: "{{ (debian_ami.images | sort(attribute='creation_date'))[-1].image_id }}"
+
+    - name: Ensure key pair exists
+      amazon.aws.ec2_key:
+        name: "{{ key_name }}"
+        state: present
+      register: key_check
+      failed_when: key_check.changed  # No implicit creation, must pre-exist
+
+    - name: Launch EC2 instance
       amazon.aws.ec2_instance:
-        instance_ids: "{{ instance_info.instances[0].instance_id }}"
         region: "{{ region }}"
-        state: running
-        wait: yes
-      when: 
-        - instance_info.instances | default([]) | length > 0
-        - current_instance_info.instances[0].state.name != 'running'
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ ami_id }}"
+        key_name: "{{ key_name }}"
+        security_group: "{{ security_group_name }}"
+        count: 1
+        wait: true
+        tags:
+          Name: "{{ instance_name }}"
+          Resource: "{{ tag_name }}"
+      when: instance_info.instances | length == 0
 
-    - name: Verify instance is running
-      amazon.aws.ec2_instance_info:
-        region: "{{ region }}"
-        instance_ids:
-          - "{{ instance_info.instances[0].instance_id }}"
-      register: verified_instance
-      until: verified_instance.instances[0].state.name == 'running'
-      retries: 30
-      delay: 10
-      when: instance_info.instances | default([]) | length > 0
-
-- name: Get Instance Public IP
+- name: Ensure EC2 instance is running
   block:
-    - name: Wait for instance to be fully ready
+
+    - name: Get EC2 instance state
       amazon.aws.ec2_instance_info:
         region: "{{ region }}"
         filters:
           tag:Name: "{{ instance_name }}"
-          instance-state-name: running
-      register: instance_data
-      until: 
-        - instance_data.instances is defined
-        - instance_data.instances | length > 0
-        - instance_data.instances[0].public_ip_address is defined
-      retries: 30
-      delay: 10
+      register: ec2_info
 
-    - name: Add instance to inventory
-      add_host:
-        name: "{{ instance_data.instances[0].public_dns_name }}"
-        ansible_host: "{{ instance_data.instances[0].public_ip_address }}"
-        groups: dynamic_ec2
-      when: 
-        - instance_data.instances is defined
-        - instance_data.instances | length > 0
-        - instance_data.instances[0].public_ip_address is defined
+    - name: Start EC2 instance if it is stopped
+      amazon.aws.ec2_instance:
+        instance_ids: "{{ ec2_info.instances[0].instance_id }}"
+        region: "{{ region }}"
+        state: running
+      when: ec2_info.instances[0].state.name != 'running'
+
+- name: Get instance public IP
+  amazon.aws.ec2_instance_info:
+    region: "{{ region }}"
+    filters:
+      tag:Name: "{{ instance_name }}"
+      instance-state-name: running
+  register: instance_data
+
+- name: Add the EC2 instance to the inventory dynamically
+  add_host:
+    name: "{{ instance_data.instances[0].public_dns_name }}"
+    ansible_host: "{{ instance_data.instances[0].public_ip_address }}"
+    groups: dynamic_ec2
+
+
+# - name: Build Security Group
+#   block:
+#     - name: Check for existing security group
+#       amazon.aws.ec2_group_info:
+#         region: "{{ region }}"
+#         filters:
+#           group-name: "{{ security_group_name }}"
+#       register: sg_info
+
+#     - name: Create security group if it doesn't exist
+#       block:
+#         - name: Create security group
+#           amazon.aws.ec2_group:
+#             name: "{{ security_group_name }}"
+#             description: Allow SSH, HTTP, and HTTPS access
+#             region: "{{ region }}"
+#             rules:
+#               - proto: tcp
+#                 ports: [22, 80, 443, 5000, 8000, 8080]
+#                 cidr_ip: 0.0.0.0/0
+#             rules_egress:
+#               - proto: -1
+#                 cidr_ip: 0.0.0.0/0
+#             state: present
+#           register: created_sg
+
+#         - name: Set security group ID
+#           set_fact:
+#             sg_id: "{{ created_sg.group_id }}"
+#       when: sg_info.security_groups | default([]) | length == 0
+
+#     - name: Set existing security group ID
+#       set_fact:
+#         sg_id: "{{ sg_info.security_groups[0].group_id }}"
+#       when: sg_info.security_groups | default([]) | length > 0
+
+# - name: Ensure EC2 Instance Exists and Running
+#   block:
+#     - name: Check for existing instance
+#       amazon.aws.ec2_instance_info:
+#         region: "{{ region }}"
+#         filters:
+#           tag:Name: "{{ instance_name }}"
+#       register: instance_info
+#       retries: 5
+#       delay: 10
+#       until: instance_info.instances is defined and instance_info.instances | length > 0
+
+#     - name: Create instance if it doesn't exist
+#       block:
+#         - name: Get latest Debian AMI
+#           amazon.aws.ec2_ami_info:
+#             owners: ['136693071363']
+#             filters:
+#               name: "debian-11*"
+#               architecture: "x86_64"
+#               root-device-type: "ebs"
+#             region: "{{ region }}"
+#           register: debian_ami
+
+#         - name: Set latest Debian AMI ID
+#           set_fact:
+#             ami_id: "{{ (debian_ami.images | sort(attribute='creation_date', reverse=true) | first).image_id }}"
+
+#         - name: Launch new EC2 instance
+#           amazon.aws.ec2_instance:
+#             region: "{{ region }}"
+#             instance_type: "{{ instance_type }}"
+#             image_id: "{{ ami_id }}"
+#             key_name: "{{ key_name }}"
+#             security_groups: "{{ security_group_name }}"
+#             tags:
+#               Name: "{{ instance_name }}"
+#               Resource: "{{ tag_name }}"
+#             wait: yes
+#             wait_timeout: 600
+#           register: ec2_instance
+
+#         - name: Refresh instance info
+#           amazon.aws.ec2_instance_info:
+#             region: "{{ region }}"
+#             instance_ids:
+#               - "{{ ec2_instance.instances[0].instance_id }}"
+#           register: instance_info
+#           until: instance_info.instances is defined and instance_info.instances | length > 0
+#           retries: 30
+#           delay: 10
+#       when: instance_info.instances | default([]) | length == 0
+
+#     - name: Get current instance state
+#       amazon.aws.ec2_instance_info:
+#         region: "{{ region }}"
+#         instance_ids:
+#           - "{{ instance_info.instances[0].instance_id }}"
+#       register: current_instance_info
+#       when: instance_info.instances | default([]) | length > 0
+
+#     - name: Start instance if not running
+#       amazon.aws.ec2_instance:
+#         instance_ids: "{{ instance_info.instances[0].instance_id }}"
+#         region: "{{ region }}"
+#         state: running
+#         wait: yes
+#       when: 
+#         - instance_info.instances | default([]) | length > 0
+#         - current_instance_info.instances[0].state.name != 'running'
+
+#     - name: Verify instance is running
+#       amazon.aws.ec2_instance_info:
+#         region: "{{ region }}"
+#         instance_ids:
+#           - "{{ instance_info.instances[0].instance_id }}"
+#       register: verified_instance
+#       until: verified_instance.instances[0].state.name == 'running'
+#       retries: 30
+#       delay: 10
+#       when: instance_info.instances | default([]) | length > 0
+
+# - name: Get Instance Public IP
+#   block:
+#     - name: Wait for instance to be fully ready
+#       amazon.aws.ec2_instance_info:
+#         region: "{{ region }}"
+#         filters:
+#           tag:Name: "{{ instance_name }}"
+#           instance-state-name: running
+#       register: instance_data
+#       until: 
+#         - instance_data.instances is defined
+#         - instance_data.instances | length > 0
+#         - instance_data.instances[0].public_ip_address is defined
+#       retries: 30
+#       delay: 10
+
+#     - name: Add instance to inventory
+#       add_host:
+#         name: "{{ instance_data.instances[0].public_dns_name }}"
+#         ansible_host: "{{ instance_data.instances[0].public_ip_address }}"
+#         groups: dynamic_ec2
+#       when: 
+#         - instance_data.instances is defined
+#         - instance_data.instances | length > 0
+#         - instance_data.instances[0].public_ip_address is defined
