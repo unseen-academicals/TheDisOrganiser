@@ -24,7 +24,7 @@
     container_name: "gooseberry"
     web_port: 8080
   roles:
-    - pro_checkmk
+    - pro_gooseberry
 
 # - name: Deploy Checkmk Container
 #   hosts: dynamic_ec2
