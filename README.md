@@ -26,9 +26,14 @@ With a single manual trigger from GitHub Actions (`workflow_dispatch`), this rep
 │       └── deploy.yml          # GitHub Actions workflow file
 ├── roles/
 │   ├── pro_build/              # Role to create EC2 instance and security group
+|   |   └──tasks/
+|   |       └── main.yml        # Builds Security Group and EC2 Instance
 │   └── pro_gooseberry/         # Role to install and configure Gooseberry
-├── pbk_gooseberry.yml             # Main Ansible playbook 
-├── motd.j2                     # Template for the EC2 MOTD
+|       ├── templates/
+|       |   └──motd.j2          # Template for the EC2 MOTD
+|       └──tasks/
+|           └── main.yml        # Installs Docker and Runs Image
+├── pbk_gooseberry.yml          # Main Ansible playbook 
 └── README.md                   # This file
 ```
 
@@ -39,10 +44,11 @@ With a single manual trigger from GitHub Actions (`workflow_dispatch`), this rep
 ### GitHub Secrets
 Add these secrets to your repository:
 
-| Secret Name             | Description                                      |
+| Secret Name            | Description                                     |
 |------------------------|-------------------------------------------------|
 | `AWS_ACCESS_KEY_ID`    | AWS access key with EC2 permissions             |
 | `AWS_SECRET_ACCESS_KEY`| AWS secret key                                  |
+| `AWS_SESSION_TOKEN`    | AWS Session Token                               |
 | `SSH_PRIVATE_KEY`      | Base64-encoded SSH key matching `key_name`      |
 
 Encode your private key:
@@ -60,7 +66,7 @@ base64 -w 0 ~/.ssh/ITM350.pem
 - Installs Ansible + dependencies (`amazon.aws`, `community.docker`).
 - Runs the Ansible playbook.
 
-### 2. Ansible Playbook (`pbk_checkmk.yml`)
+### 2. Ansible Playbook (`pbk_gooseberry.yml`)
 - **EC2 Provisioning**:
   - Creates a security group (`disorganized-sg`) with ports `22` (SSH), `80` (HTTP), and `443` (HTTPS) open.
   - Launches a Debian EC2 instance tagged `Name=disorganizer`.
