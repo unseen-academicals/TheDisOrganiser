@@ -46,9 +46,6 @@
     #       tag:Name: "{{ instance_name }}"
     #   register: instance_info
     #   failed_when: instance_info.instances | length == 0
-
- - name: Build EC2
-   block:
     - name: Check for existing non-terminated instances
       amazon.aws.ec2_instance_info:
         region: "{{ region }}"
