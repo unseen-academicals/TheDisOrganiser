@@ -1,0 +1,39 @@
+---
+
+- name: Update Message of the Day
+  template:
+    src: motd.j2
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install gooseberry
+  block:
+    - name: Install Docker dependencies
+      apt:
+        name: 
+          - docker.io
+          - docker-compose
+        update_cache: yes
+        state: present
+
+    - name: Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Pull Gooseberry Docker image
+      docker_image:
+        name: "{{ image }}"
+        source: pull
+
+    - name: Deploy Gooseberry container
+      docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ web_port }}:{{ container_port }}/tcp"

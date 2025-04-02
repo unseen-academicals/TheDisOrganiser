@@ -13,19 +13,32 @@
     - pro_build
 
 
-- name: Deploy Checkmk Container
+- name: Deploy Gooseberry
   hosts: dynamic_ec2
   become: yes
   vars:
     ansible_user: admin
     ansible_ssh_private_key_file: ~/.ssh/id_rsa
     ansible_ssh_common_args: '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
-    checkmk_image: "checkmk/check-mk-raw:2.2.0-latest"
-    container_name: "checkmk_monitoring"
+    image: "robanybody1920/gooseberry:latest"
+    container_name: "gooseberry"
     web_port: 8080
-    agent_port: 8000
   roles:
     - pro_checkmk
+
+# - name: Deploy Checkmk Container
+#   hosts: dynamic_ec2
+#   become: yes
+#   vars:
+#     ansible_user: admin
+#     ansible_ssh_private_key_file: ~/.ssh/id_rsa
+#     ansible_ssh_common_args: '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
+#     checkmk_image: "checkmk/check-mk-raw:2.2.0-latest"
+#     container_name: "checkmk_monitoring"
+#     web_port: 8080
+#     agent_port: 8000
+#   roles:
+#     - pro_checkmk
 
   # tasks:
   #   - name: Install Docker dependencies
