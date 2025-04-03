@@ -27,6 +27,13 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_KEY_B64 }}" | base64 -d > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
+        ls -la ~/.ssh
+
+    - name: Fix SSH key permissions
+      run: chmod 600 ~/.ssh/id_rsa
+
+    - name: Test SSH connection
+      run: ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@54.211.74.240 echo "SSH connection successful"
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -41,4 +48,4 @@ jobs:
 
     - name: Run Ansible Playbook
       run: |
-        ansible-playbook pbk_gooseberry.yml -i localhost,
+        ansible-playbook pbk_gooseberry.yml -i localhost
