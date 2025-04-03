@@ -4,7 +4,7 @@
   gather_facts: no
   vars:
     instance_name: disorganizer
-    key_name: itm1
+    key_name: itm130
     security_group_name: disorganized-sg
     instance_type: t2.micro
     region: us-east-1
@@ -18,7 +18,7 @@
   become: yes
   vars:
     ansible_user: admin
-    ansible_ssh_private_key_file: ./itm1.pem
+    ansible_ssh_private_key_file: /Users/stevebassaw/Desktop/itm130.pem
     ansible_ssh_common_args: '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
     image: "robanybody1920/gooseberry:latest"
     container_name: "gooseberry"
