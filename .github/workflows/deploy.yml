@@ -23,11 +23,12 @@ jobs:
         aws-region: us-east-1
 
     - name: Set up SSH key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_KEY_B64 }}" | base64 -d > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ls -la ~/.ssh
+  run: |
+    mkdir -p ~/.ssh
+    echo "${{ secrets.SSH_KEY_B64 }}" | base64 -d > ~/temp_id_rsa
+    mv ~/temp_id_rsa ~/.ssh/id_rsa
+    chmod 600 ~/.ssh/id_rsa
+    ls -la ~/.ssh
 
     - name: Fix SSH key permissions
       run: chmod 600 ~/.ssh/id_rsa
