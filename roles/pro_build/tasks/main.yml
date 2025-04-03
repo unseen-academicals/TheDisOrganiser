@@ -39,13 +39,13 @@
 - name: Build EC2
   block:
 
-- name: Ensure key pair exists
-  amazon.aws.ec2_key:
-    name: "{{ key_name }}"
-    state: present
-  register: key_check
-  failed_when: key_check.changed  # No implicit creation, must pre-exist
-
+    - name: Check if instance exists
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        filters:
+          tag:Name: "{{ instance_name }}"
+      register: instance_info
+      failed_when: instance_info.instances | length == 0
 
   rescue:
 
@@ -83,6 +83,7 @@
           Name: "{{ instance_name }}"
           Resource: "{{ tag_name }}"
       when: instance_info.instances | length == 0
+
 
 - name: Ensure EC2 instance is running
   block:
