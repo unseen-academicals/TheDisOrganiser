@@ -53,7 +53,7 @@ Add these secrets to your repository:
 
 Encode your private key:
 ```bash
-base64 -w 0 ~/.ssh/ITM350.pem
+base64 -i ./ITM350.pem
 ```
 
 ---
