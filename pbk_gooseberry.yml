@@ -4,7 +4,7 @@
   gather_facts: no
   vars:
     instance_name: disorganizer
-    key_name: ITM350
+    key_name: app-key
     security_group_name: disorganized-sg
     instance_type: t2.micro
     region: us-east-1
